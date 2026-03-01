@@ -31,8 +31,8 @@ def ingest_bronze(file_records: list[dict], bronze_root: str | Path, run_month: 
         src = Path(rec["source_path"])
         try:
             digest = file_hash(src)
-        except (FileNotFoundError, PermissionError, OSError) as exc:
-            print(f"[bronze] warning: cannot hash {src} ({exc})")
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            print(f"[bronze] warning: cannot hash {src} ({e})")
             continue
         if digest in known_hashes:
             continue
@@ -44,8 +44,8 @@ def ingest_bronze(file_records: list[dict], bronze_root: str | Path, run_month: 
         target = partition / src.name
         try:
             copy2(src, target)
-        except (FileNotFoundError, PermissionError, OSError) as exc:
-            print(f"[bronze] warning: cannot copy {src} -> {target} ({exc})")
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            print(f"[bronze] warning: cannot copy {src} -> {target} ({e})")
             continue
         new_rows.append(
             {
@@ -65,6 +65,6 @@ def ingest_bronze(file_records: list[dict], bronze_root: str | Path, run_month: 
     if new_rows:
         try:
             write_rows_csv(manifest_path, new_rows, MANIFEST_COLS)
-        except OSError as exc:
-            print(f"[bronze] warning: cannot write manifest {manifest_path} ({exc})")
+        except OSError as e:
+            print(f"[bronze] warning: cannot write manifest {manifest_path} ({e})")
     return new_rows
