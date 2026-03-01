@@ -7,6 +7,17 @@ import pandas as pd
 from .io_utils import ensure_dir, read_rows_csv
 from .silver_mapping import TARGET_COLS, load_program_lookup, map_actuals, map_budget, norm_cols
 
+
+def _excel_engine(path: str) -> str | None:
+    ext = Path(path).suffix.lower()
+    if ext in {".xlsx", ".xlsm"}:
+        return "openpyxl"
+    if ext == ".xls":
+        return "xlrd"
+    if ext == ".xlsb":
+        return "pyxlsb"
+    return None
+
 def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, program_lookup_file: str = "") -> dict:
     manifest = read_rows_csv(Path(bronze_root) / "manifest.csv")
     rows = [r for r in manifest if r.get("fy") == fy and not str(r.get("file_name", "")).startswith("~$")]
@@ -17,8 +28,15 @@ def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, prog
         program_lookup = pd.DataFrame()
     frames: list[pd.DataFrame] = []
     for row in rows:
+        engine = _excel_engine(str(row["bronze_path"]))
+        if engine is None:
+            print(f"[silver] warning: skipping unsupported extension {row['bronze_path']}")
+            continue
         try:
-            df = norm_cols(pd.read_excel(row["bronze_path"], engine="openpyxl"))
+            df = norm_cols(pd.read_excel(row["bronze_path"], engine=engine))
+        except ImportError as exc:
+            print(f"[silver] warning: missing Excel engine '{engine}' for {row['bronze_path']} ({exc})")
+            continue
         except (FileNotFoundError, BadZipFile, ValueError) as exc:
             print(f"[silver] warning: skipping unreadable source {row['bronze_path']} ({exc})")
             continue

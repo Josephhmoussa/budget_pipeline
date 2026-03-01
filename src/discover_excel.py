@@ -25,6 +25,7 @@ MONTH_NUM = {
     "november": "11",
     "december": "12",
 }
+EXCEL_EXTENSIONS = {".xlsx", ".xlsm", ".xls", ".xlsb"}
 
 
 def _normalize_fy(raw: str) -> str:
@@ -46,8 +47,10 @@ def _extract_snapshot_month(path_text: str) -> str | None:
 def discover_excel(source_root: str | Path) -> list[dict]:
     root = Path(source_root)
     records: list[dict] = []
-    for xlsx in root.rglob("*.xlsx"):
-        path_text = str(xlsx).lower()
+    for excel_file in root.rglob("*"):
+        if not excel_file.is_file() or excel_file.suffix.lower() not in EXCEL_EXTENSIONS:
+            continue
+        path_text = str(excel_file).lower()
         source = "actuals" if "actuals" in path_text else "budget" if "budget" in path_text else None
         if source is None:
             continue
@@ -58,8 +61,9 @@ def discover_excel(source_root: str | Path) -> list[dict]:
         snapshot_month = _extract_snapshot_month(path_text)
         records.append(
             {
-                "source_path": str(xlsx),
-                "file_name": xlsx.name,
+                "source_path": str(excel_file),
+                "file_name": excel_file.name,
+                "file_ext": excel_file.suffix.lower(),
                 "fy": fy,
                 "source": source,
                 "snapshot_month": snapshot_month,
