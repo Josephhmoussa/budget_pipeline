@@ -32,7 +32,7 @@ def load_program_lookup(file_path: str | Path) -> pd.DataFrame:
     path = Path(file_path)
     if not path.exists():
         return pd.DataFrame(columns=["project_code", "task_id", "project_name", "program"])
-    lookup = norm_cols(pd.read_excel(path, engine="openpyxl"))
+    lookup = norm_cols(pd.read_excel(path, sheet_name="Reference"))
     out = pd.DataFrame()
     out["project_code"] = pick(lookup, ["project_code", "project"], "").astype(str).str.strip()
     out["program"] = pick(lookup, ["program"], "").astype(str).str.strip()

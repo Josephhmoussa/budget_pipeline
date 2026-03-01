@@ -8,6 +8,9 @@ from .io_utils import ensure_dir, read_rows_csv
 from .silver_mapping import TARGET_COLS, load_program_lookup, map_actuals, map_budget, norm_cols
 
 
+SOURCE_SHEETS = {"actuals": "OS extract", "budget": "Database"}
+
+
 def _excel_engine(path: str) -> str | None:
     ext = Path(path).suffix.lower()
     if ext in {".xlsx", ".xlsm"}:
@@ -17,6 +20,10 @@ def _excel_engine(path: str) -> str | None:
     if ext == ".xlsb":
         return "pyxlsb"
     return None
+
+
+def _source_sheet(source: str) -> str:
+    return SOURCE_SHEETS.get(source, "OS extract")
 
 def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, program_lookup_file: str = "") -> dict:
     manifest = read_rows_csv(Path(bronze_root) / "manifest.csv")
@@ -33,7 +40,7 @@ def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, prog
             print(f"[silver] warning: skipping unsupported extension {row['bronze_path']}")
             continue
         try:
-            df = norm_cols(pd.read_excel(row["bronze_path"], engine=engine))
+            df = norm_cols(pd.read_excel(row["bronze_path"], engine=engine, sheet_name=_source_sheet(str(row.get("source", "")))))
         except ImportError as exc:
             print(f"[silver] warning: missing Excel engine '{engine}' for {row['bronze_path']} ({exc})")
             continue
