@@ -7,7 +7,9 @@
   - `python3 run_pipeline.py --fy 2026 --config config/pipeline_config.json`
 
 ## Config
-- Main config: `config/pipeline_config.json`
+- Copy the template: `cp config/pipeline_config.example.json config/pipeline_config.json`
+- Main local config (git-ignored): `config/pipeline_config.json`
+- Repo-safe template: `config/pipeline_config.example.json`
 - `source_root`: source files root path
 - `data_paths`: bronze/silver/gold output folders (relative to project root)
 - `reference_files.project_codes_lookup`: lookup Excel used to enrich actuals `program`

@@ -1,0 +1,11 @@
+{
+  "source_root": "/absolute/path/to/mock_structure",
+  "data_paths": {
+    "bronze": "data/bronze",
+    "silver": "data/silver",
+    "gold": "data/gold"
+  },
+  "reference_files": {
+    "project_codes_lookup": "/absolute/path/to/ATIL Project Codes.xls"
+  }
+}
