@@ -1,0 +1,11 @@
+{
+  "source_root": "/Users/josephmoussa/Desktop/mock_structure",
+  "data_paths": {
+    "bronze": "data/bronze",
+    "silver": "data/silver",
+    "gold": "data/gold"
+  },
+  "reference_files": {
+    "project_codes_lookup": "/Users/josephmoussa/Desktop/Cost Centers/Project Codes Consolidation/ATIL Project Codes.xls"
+  }
+}

@@ -1,0 +1,17 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+
+# Generated pipeline artifacts
+data/
+output/
+logs/
+
+# Notebook and editor noise
+.ipynb_checkpoints/
+.vscode/
