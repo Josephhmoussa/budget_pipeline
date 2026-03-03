@@ -12,10 +12,8 @@ silver_dir = root / "data" / "silver" / f"fy={fy}"
 gold_dir = root / "data" / "gold" / f"fy={fy}"
 
 silver_history = pd.read_parquet(silver_dir / "silver_finance_history.parquet")
-silver_latest = pd.read_parquet(silver_dir / "silver_finance_latest.parquet")
 with pd.ExcelWriter(out_dir / "silver_outputs.xlsx", engine="openpyxl") as writer:
     silver_history.to_excel(writer, index=False, sheet_name="history")
-    silver_latest.to_excel(writer, index=False, sheet_name="latest")
 
 gold_fact = pd.read_parquet(gold_dir / "fact_finance.parquet")
 with pd.ExcelWriter(out_dir / "gold_outputs.xlsx", engine="openpyxl") as writer:
@@ -25,6 +23,5 @@ print("silver_file", out_dir / "silver_outputs.xlsx")
 print("gold_file", out_dir / "gold_outputs.xlsx")
 print("rows", {
     "silver_history": len(silver_history),
-    "silver_latest": len(silver_latest),
     "gold_fact": len(gold_fact),
 })

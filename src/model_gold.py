@@ -5,14 +5,15 @@ from .io_utils import ensure_dir
 
 
 def build_gold(silver_root: str | Path, gold_root: str | Path, fy: str) -> dict:
-    silver_latest = Path(silver_root) / f"fy={fy}" / "silver_finance_latest.parquet"
-    if not silver_latest.exists():
+    silver_dir = Path(silver_root) / f"fy={fy}"
+    silver_history = silver_dir / "silver_finance_history.parquet"
+    if not silver_history.exists():
         return {"fact": ""}
 
     try:
-        fact = pd.read_parquet(silver_latest)
+        fact = pd.read_parquet(silver_history)
     except (FileNotFoundError, OSError, ValueError) as exc:
-        print(f"[gold] warning: cannot read {silver_latest} ({exc})")
+        print(f"[gold] warning: cannot read {silver_history} ({exc})")
         return {"fact": ""}
 
     target = ensure_dir(Path(gold_root) / f"fy={fy}")
