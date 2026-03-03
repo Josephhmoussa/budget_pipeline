@@ -5,7 +5,7 @@ import pandas as pd
 from .budget_program_mapping import derive_budget_program
 
 TARGET_COLS = [
-    "cost_center_code", "cost_center_name", "group_cost_nature", "cost_nature", "account", "account_name",
+    "cost_center_code", "cost_center_name", "group_cost_nature", "cost_nature", "account_code", "account_name",
     "currency", "supplier_name", "cpx_opx", "details", "bubble", "portfolio", "product_code", "product_name",
     "date", "amount", "scenario", "program",
 ]
@@ -35,7 +35,7 @@ def load_program_lookup(file_path: str | Path) -> pd.DataFrame:
     lookup = norm_cols(pd.read_excel(path, sheet_name="Reference"))
     out = pd.DataFrame()
     out["project_code"] = pick(lookup, ["project_code", "project"], "").astype(str).str.strip()
-    out["program"] = pick(lookup, ["program"], "").astype(str).str.strip()
+    out["program"] = pick(lookup, ["program1", "program"], "").astype(str).str.strip()
     return out[(out["program"] != "") & (out["project_code"] != "")][["project_code", "program"]].drop_duplicates()
 
 
@@ -66,7 +66,7 @@ def map_actuals(df: pd.DataFrame, fy: str, lookup: pd.DataFrame) -> pd.DataFrame
     return pd.DataFrame({
         "cost_center_code": pick(df, ["cost_center_code"], ""), "cost_center_name": cc_name.fillna(""),
         "group_cost_nature": pick(df, ["group_cost_nature"], ""), "cost_nature": pick(df, ["cost_nature"], ""),
-        "account": acct_code.fillna(""), "account_name": acct_name.fillna(""),
+        "account_code": acct_code.fillna(""), "account_name": acct_name.fillna(""),
         "currency": pick(df, ["transaction_currency", "currency"], ""), "supplier_name": pick(df, ["supplier_name", "supplier"], ""),
         "cpx_opx": cpx, "details": pick(df, ["line_description", "details"], ""),
         "bubble": pick(df, ["bubble"], ""), "portfolio": pick(df, ["portfolio"], ""),
@@ -75,21 +75,23 @@ def map_actuals(df: pd.DataFrame, fy: str, lookup: pd.DataFrame) -> pd.DataFrame
     })
 
 
-def map_budget(df: pd.DataFrame, fy: str) -> pd.DataFrame:
+def map_budget(df: pd.DataFrame, fy: str, account_lookup: pd.DataFrame) -> pd.DataFrame:
     month_cols = [m for m in MONTHS if m in df.columns]
     long = df.melt(id_vars=[c for c in df.columns if c not in month_cols], value_vars=month_cols, var_name="month_name", value_name="amount")
-    acct_code, acct_name = split_code_name(pick(long, ["account"], ""))
-    _, cc_name = split_code_name(pick(long, ["cost_center_name"], ""))
+    acct_code = pick(long, ["account", "account_code"], "").astype(str).str.strip()
+    account_name = acct_code.map(dict(zip(account_lookup["account_code"], account_lookup["account_name"]))) if not account_lookup.empty else pd.Series([""] * len(long), index=long.index)
     prod_code_raw, prod_name = split_code_name(pick(long, ["product"], ""))
     details = pick(long, ["details"], "")
+    scenario_raw = pick(long, ["scenario_budget_year", "scenario"], f"Budget {fy}")
+    budget_year = scenario_raw.astype(str).str.extract(r'(\d{4})')[0].fillna(fy)
     return pd.DataFrame({
-        "cost_center_code": pick(long, ["cost_center_code"], ""), "cost_center_name": cc_name.fillna(""),
+        "cost_center_code": pick(long, ["cost_center_code"], ""), "cost_center_name": pick(long, ["cost_center_name"], ""),
         "group_cost_nature": pick(long, ["group_cost_nature", "group_cost_center"], ""), "cost_nature": pick(long, ["cost_nature"], ""),
-        "account": acct_code.fillna(""), "account_name": acct_name.fillna(""),
+        "account_code": acct_code.fillna(""), "account_name": account_name.fillna(""),
         "currency": pick(long, ["currency"], ""), "supplier_name": pick(long, ["supplier_name", "supplier"], ""),
         "cpx_opx": pick(long, ["cpx_opx_capex_opex", "cpx_opx"], ""), "details": details,
         "bubble": pick(long, ["bubble"], ""), "portfolio": pick(long, ["portfolio"], ""),
         "product_code": pick(long, ["product_code"], prod_code_raw.fillna("")), "product_name": prod_name.fillna(""),
-        "date": pd.to_datetime(fy + "-" + long["month_name"].map(MONTH_NUM).fillna("01") + "-01", errors="coerce"),
+        "date": pd.to_datetime(budget_year + "-" + long["month_name"].map(MONTH_NUM).fillna("01") + "-01", errors="coerce"),
         "amount": long["amount"], "scenario": "BUDGET", "program": derive_budget_program(details),
     })
