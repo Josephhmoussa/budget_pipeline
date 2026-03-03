@@ -38,13 +38,25 @@ def normalize_account_code(series: pd.Series) -> pd.Series:
     )
 
 
+def normalize_project_code(series: pd.Series) -> pd.Series:
+    return (
+        series.astype(str)
+        .str.replace("\u00a0", " ", regex=False)
+        .str.strip()
+        .str.upper()
+        .str.replace(r"\.0$", "", regex=True)
+        .replace({"NAN": "", "NONE": ""})
+    )
+
+
 def load_program_lookup(file_path: str | Path) -> pd.DataFrame:
     path = Path(file_path)
     if not path.exists():
         return pd.DataFrame(columns=["project_code", "task_id", "project_name", "program"])
-    lookup = norm_cols(pd.read_excel(path, sheet_name="Reference"))
+    lookup = pd.read_excel(path, sheet_name="program_reference")
+    lookup = norm_cols(lookup)
     out = pd.DataFrame()
-    out["project_code"] = pick(lookup, ["project_code", "project"], "").astype(str).str.strip()
+    out["project_code"] = normalize_project_code(pick(lookup, ["project_code", "project"], ""))
     out["program"] = pick(lookup, ["program1", "program"], "").astype(str).str.strip()
     return out[(out["program"] != "") & (out["project_code"] != "")][["project_code", "program"]].drop_duplicates()
 
@@ -52,7 +64,7 @@ def load_program_lookup(file_path: str | Path) -> pd.DataFrame:
 def derive_program(df: pd.DataFrame, lookup: pd.DataFrame) -> pd.Series:
     if lookup.empty:
         return pd.Series(["other"] * len(df), index=df.index)
-    keys = pd.DataFrame({"project_code": pick(df, ["project", "project_code"], "").astype(str).str.strip()})
+    keys = pd.DataFrame({"project_code": normalize_project_code(pick(df, ["project", "project_code"], ""))})
     merged = keys.merge(lookup, on="project_code", how="left")
     return merged["program"].fillna("other")
 
