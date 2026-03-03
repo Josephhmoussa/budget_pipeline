@@ -27,7 +27,7 @@ for _, row in keys.iterrows():
         'project status': random.choice(statuses),
         'comments': 'auto-generated sample mapping',
         'costs description': 'standard operating cost',
-        'program1': random.choice(programs),
+        'Program1': random.choice(programs),
     })
 
 for i in range(5):
@@ -42,7 +42,7 @@ for i in range(5):
         'project status': random.choice(statuses),
         'comments': 'non matching row',
         'costs description': 'other',
-        'program1': random.choice(programs),
+        'Program1': random.choice(programs),
     })
 
 out = pd.DataFrame(rows)

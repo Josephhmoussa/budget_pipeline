@@ -28,6 +28,16 @@ def split_code_name(series: pd.Series) -> tuple[pd.Series, pd.Series]:
     return (parts[0], parts[1]) if parts.shape[1] > 1 else (parts[0], parts[0])
 
 
+def normalize_account_code(series: pd.Series) -> pd.Series:
+    return (
+        series.astype(str)
+        .str.strip()
+        .str.replace(r"\.0$", "", regex=True)
+        .str.upper()
+        .replace({"NAN": "", "NONE": ""})
+    )
+
+
 def load_program_lookup(file_path: str | Path) -> pd.DataFrame:
     path = Path(file_path)
     if not path.exists():
@@ -60,6 +70,7 @@ def actuals_date(df: pd.DataFrame, fy: str) -> pd.Series:
 
 def map_actuals(df: pd.DataFrame, fy: str, lookup: pd.DataFrame) -> pd.DataFrame:
     acct_code, acct_name = split_code_name(pick(df, ["account"], ""))
+    acct_code = normalize_account_code(acct_code)
     _, cc_name = split_code_name(pick(df, ["cost_center_name"], ""))
     prod_code, prod_name = split_code_name(pick(df, ["business_unit_final"], ""))
     cpx = pick(df, ["cpx_opx_n_or_y", "cpx_opx"], "").astype(str).str.strip().str.lower().map({"y": "Capex", "n": "Opex", "capex": "Capex", "opex": "Opex"}).fillna("")
@@ -78,7 +89,7 @@ def map_actuals(df: pd.DataFrame, fy: str, lookup: pd.DataFrame) -> pd.DataFrame
 def map_budget(df: pd.DataFrame, fy: str, account_lookup: pd.DataFrame) -> pd.DataFrame:
     month_cols = [m for m in MONTHS if m in df.columns]
     long = df.melt(id_vars=[c for c in df.columns if c not in month_cols], value_vars=month_cols, var_name="month_name", value_name="amount")
-    acct_code = pick(long, ["account", "account_code"], "").astype(str).str.strip()
+    acct_code = normalize_account_code(pick(long, ["account", "account_code"], ""))
     account_name = acct_code.map(dict(zip(account_lookup["account_code"], account_lookup["account_name"]))) if not account_lookup.empty else pd.Series([""] * len(long), index=long.index)
     prod_code_raw, prod_name = split_code_name(pick(long, ["product"], ""))
     details = pick(long, ["details"], "")
