@@ -49,6 +49,10 @@ def normalize_project_code(series: pd.Series) -> pd.Series:
     )
 
 
+def compact_project_code(series: pd.Series) -> pd.Series:
+    return normalize_project_code(series).str.replace(r"[^A-Z0-9]", "", regex=True)
+
+
 def load_program_lookup(file_path: str | Path) -> pd.DataFrame:
     path = Path(file_path)
     if not path.exists():
@@ -65,8 +69,16 @@ def derive_program(df: pd.DataFrame, lookup: pd.DataFrame) -> pd.Series:
     if lookup.empty:
         return pd.Series(["other"] * len(df), index=df.index)
     keys = pd.DataFrame({"project_code": normalize_project_code(pick(df, ["project", "project_code"], ""))})
-    merged = keys.merge(lookup, on="project_code", how="left")
-    return merged["program"].fillna("other")
+    keys["project_code_compact"] = compact_project_code(keys["project_code"])
+
+    exact_map = lookup.drop_duplicates(subset=["project_code"], keep="first").set_index("project_code")["program"]
+    lookup_compact = lookup.copy()
+    lookup_compact["project_code_compact"] = compact_project_code(lookup_compact["project_code"])
+    compact_map = lookup_compact.drop_duplicates(subset=["project_code_compact"], keep="first").set_index("project_code_compact")["program"]
+
+    program = keys["project_code"].map(exact_map)
+    program = program.fillna(keys["project_code_compact"].map(compact_map))
+    return program.fillna("other")
 
 
 def actuals_date(df: pd.DataFrame, fy: str) -> pd.Series:
