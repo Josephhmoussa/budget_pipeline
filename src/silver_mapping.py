@@ -66,6 +66,34 @@ def load_program_lookup(file_path: str | Path) -> pd.DataFrame:
     return out[(out["program"] != "") & (out["project_code"] != "")][["project_code", "program"]].drop_duplicates()
 
 
+def load_contractor_lookup(file_path: str | Path) -> pd.DataFrame:
+    path = Path(file_path)
+    if not path.exists():
+        return pd.DataFrame(columns=["erm", "program"])
+    lookup = norm_cols(pd.read_excel(path, sheet_name="Contractors - raw data"))
+    out = pd.DataFrame()
+    out["erm"] = pick(lookup, ["erm"], "").astype(str).str.strip()
+    out["program"] = pick(lookup, ["program"], "").astype(str).str.strip()
+    out = out[(out["erm"] != "") & (out["program"] != "")]
+    out["erm_key"] = out["erm"].str.lower()
+    return out.drop_duplicates(subset=["erm_key"], keep="first")[["erm", "erm_key", "program"]]
+
+
+def derive_budget_program_from_contractors(details: pd.Series, contractors: pd.DataFrame) -> pd.Series:
+    if contractors.empty:
+        return pd.Series(["other"] * len(details), index=details.index)
+    pairs = [(row["erm_key"], row["program"]) for _, row in contractors.iterrows()]
+
+    def match_one(text: str) -> str:
+        value = str(text).lower()
+        for erm_key, program in pairs:
+            if erm_key and erm_key in value:
+                return program
+        return "other"
+
+    return details.astype(str).map(match_one)
+
+
 def derive_program(df: pd.DataFrame, lookup: pd.DataFrame) -> pd.Series:
     if lookup.empty:
         return pd.Series(["other"] * len(df), index=df.index)
@@ -115,13 +143,15 @@ def map_actuals(df: pd.DataFrame, fy: str, lookup: pd.DataFrame) -> pd.DataFrame
     })
 
 
-def map_budget(df: pd.DataFrame, fy: str, account_lookup: pd.DataFrame) -> pd.DataFrame:
+def map_budget(df: pd.DataFrame, fy: str, account_lookup: pd.DataFrame, contractor_lookup: pd.DataFrame) -> pd.DataFrame:
     month_cols = [m for m in MONTHS if m in df.columns]
     long = df.melt(id_vars=[c for c in df.columns if c not in month_cols], value_vars=month_cols, var_name="month_name", value_name="amount")
     acct_code = normalize_account_code(pick(long, ["account", "account_code"], ""))
     account_name = acct_code.map(dict(zip(account_lookup["account_code"], account_lookup["account_name"]))) if not account_lookup.empty else pd.Series([""] * len(long), index=long.index)
     prod_code_raw, prod_name = split_code_name(pick(long, ["product"], ""))
     details = pick(long, ["details"], "")
+    contractor_program = derive_budget_program_from_contractors(details, contractor_lookup)
+    dict_program = derive_budget_program(details)
     scenario_raw = pick(long, ["scenario_budget_year", "scenario"], f"Budget {fy}")
     budget_year = scenario_raw.astype(str).str.extract(r'(\d{4})')[0].fillna(fy)
     return pd.DataFrame({
@@ -133,5 +163,5 @@ def map_budget(df: pd.DataFrame, fy: str, account_lookup: pd.DataFrame) -> pd.Da
         "bubble": pick(long, ["bubble"], ""), "portfolio": pick(long, ["portfolio"], ""),
         "product_code": pick(long, ["product_code"], prod_code_raw.fillna("")), "product_name": prod_name.fillna(""),
         "date": pd.to_datetime(budget_year + "-" + long["month_name"].map(MONTH_NUM).fillna("01") + "-01", errors="coerce"),
-        "amount": long["amount"], "scenario": "BUDGET", "program": derive_budget_program(details),
+        "amount": long["amount"], "scenario": "BUDGET", "program": contractor_program.where(contractor_program != "other", dict_program),
     })

@@ -5,7 +5,7 @@ from zipfile import BadZipFile
 import pandas as pd
 
 from .io_utils import ensure_dir, read_rows_csv
-from .silver_mapping import TARGET_COLS, load_program_lookup, map_actuals, map_budget, norm_cols
+from .silver_mapping import TARGET_COLS, load_contractor_lookup, load_program_lookup, map_actuals, map_budget, norm_cols
 
 
 SOURCE_SHEETS = {"actuals": "OS extract", "budget": "Database"}
@@ -29,7 +29,7 @@ def _source_sheet(source: str) -> str:
 def _source_header(source: str) -> int:
     return 8 if source == "budget" else 0
 
-def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, program_lookup_file: str = "") -> dict:
+def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, program_lookup_file: str = "", contractor_lookup_file: str = "") -> dict:
     manifest = read_rows_csv(Path(bronze_root) / "manifest.csv")
     rows = [r for r in manifest if r.get("fy") == fy and not str(r.get("file_name", "")).startswith("~$")]
     try:
@@ -37,6 +37,11 @@ def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, prog
     except (FileNotFoundError, ValueError) as exc:
         print(f"[silver] warning: program lookup unavailable ({exc}); using empty lookup")
         program_lookup = pd.DataFrame()
+    try:
+        contractor_lookup = load_contractor_lookup(contractor_lookup_file) if contractor_lookup_file else pd.DataFrame()
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"[silver] warning: contractor lookup unavailable ({exc}); using empty lookup")
+        contractor_lookup = pd.DataFrame()
     loaded: list[tuple[dict, pd.DataFrame]] = []
     for row in rows:
         source = str(row.get("source", ""))
@@ -78,7 +83,7 @@ def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, prog
     for row, df in loaded:
         if row["source"] != "budget":
             continue
-        out = map_budget(df, fy, account_lookup)
+        out = map_budget(df, fy, account_lookup, contractor_lookup)
         out["snapshot_key"] = row.get("snapshot_month") or f"{row.get('snapshot_fy', fy)}-12"
         frames.append(out)
     if not frames:

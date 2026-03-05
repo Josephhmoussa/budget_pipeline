@@ -49,11 +49,12 @@ def main() -> None:
     silver = project_root / cfg["data_paths"]["silver"]
     gold = project_root / cfg["data_paths"]["gold"]
     program_lookup = cfg.get("reference_files", {}).get("project_codes_lookup", "")
+    contractor_lookup = cfg.get("reference_files", {}).get("contractor_codes_lookup", "")
 
     discovered = discover_excel(source_root)
     selected = [r for r in discovered if r["fy"] == args.fy]
     loaded = ingest_bronze(selected, bronze, args.run_month)
-    silver_paths = build_silver(bronze, silver, args.fy, program_lookup)
+    silver_paths = build_silver(bronze, silver, args.fy, program_lookup, contractor_lookup)
     gold_paths = build_gold(silver, gold, args.fy)
     serving_path = build_gold_serving(gold)
     summary = {
