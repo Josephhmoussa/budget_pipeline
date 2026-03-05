@@ -44,6 +44,7 @@ def normalize_project_code(series: pd.Series) -> pd.Series:
         .str.replace("\u00a0", " ", regex=False)
         .str.strip()
         .str.upper()
+        .str.replace(r"\s*[-_]?\s*MIRROR$", "", regex=True)
         .str.replace(r"\.0$", "", regex=True)
         .replace({"NAN": "", "NONE": ""})
     )
@@ -83,11 +84,15 @@ def derive_program(df: pd.DataFrame, lookup: pd.DataFrame) -> pd.Series:
 
 def actuals_date(df: pd.DataFrame, fy: str) -> pd.Series:
     raw = pick(df, ["time", "date", "period", "month"], "")
-    parsed = pd.to_datetime(raw, errors="coerce", format="mixed")
+    raw_str = raw.astype(str).str.strip()
+    m_code = raw_str.str.extract(r"(?i)(20\d{2})\s*M\s*([1-9]|1[0-2])")
+    m_code_date = pd.to_datetime(m_code[0].fillna("") + "-" + m_code[1].fillna("").str.zfill(2) + "-01", errors="coerce")
+    parsed = pd.to_datetime(raw_str, errors="coerce", format="mixed")
+    parsed = parsed.fillna(m_code_date)
     if parsed.notna().any():
         return parsed
     year = pd.to_numeric(pick(df, ["year"], fy), errors="coerce").fillna(int(fy)).astype(int).astype(str)
-    month = raw.astype(str).str.strip().str.lower().str[:3]
+    month = raw_str.str.lower().str[:3]
     m = month.map({k[:3]: v for k, v in MONTH_NUM.items()}).fillna("01")
     return pd.to_datetime(year + "-" + m + "-01", errors="coerce")
 
