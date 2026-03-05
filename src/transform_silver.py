@@ -87,17 +87,12 @@ def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, prog
         out["snapshot_key"] = row.get("snapshot_month") or f"{row.get('snapshot_fy', fy)}-12"
         frames.append(out)
     if not frames:
-        return {"history": "", "latest": ""}
+        return {"history": ""}
     history = pd.concat(frames, ignore_index=True)
     history["amount"] = pd.to_numeric(history["amount"], errors="coerce").fillna(0.0)
     history["date"] = pd.to_datetime(history["date"], errors="coerce")
-    keys = ["cost_center_code", "cost_center_name", "group_cost_nature", "cost_nature", "account_code", "account_name", "currency", "supplier_name", "cpx_opx", "details", "bubble", "portfolio", "product_code", "product_name", "date", "scenario", "program", "actuals_project_code"]
-    latest = history.sort_values("snapshot_key").drop_duplicates(subset=keys, keep="last")
     history = history[TARGET_COLS]
-    latest = latest[TARGET_COLS]
     target = ensure_dir(Path(silver_root) / f"fy={fy}")
     history_path = target / "silver_finance_history.parquet"
-    latest_path = target / "silver_finance_latest.parquet"
     history.to_parquet(history_path, index=False)
-    latest.to_parquet(latest_path, index=False)
-    return {"history": str(history_path), "latest": str(latest_path)}
+    return {"history": str(history_path)}

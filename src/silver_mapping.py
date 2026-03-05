@@ -39,15 +39,17 @@ def normalize_account_code(series: pd.Series) -> pd.Series:
 
 
 def normalize_project_code(series: pd.Series) -> pd.Series:
-    return (
+    norm = (
         series.astype(str)
         .str.replace("\u00a0", " ", regex=False)
         .str.strip()
         .str.upper()
         .str.replace(r"\s*[-_]?\s*MIRROR$", "", regex=True)
         .str.replace(r"\.0$", "", regex=True)
-        .replace({"NAN": "", "NONE": ""})
+        .replace({"NAN": "", "NONE": "", "N/A": "", "NA": "", "-": "", "--": ""})
     )
+    norm = norm.str.replace(r"^(?:-|_)+$", "", regex=True)
+    return norm.where(norm.str.contains(r"[A-Z0-9]", regex=True), "")
 
 
 def compact_project_code(series: pd.Series) -> pd.Series:
@@ -79,9 +81,9 @@ def load_contractor_lookup(file_path: str | Path) -> pd.DataFrame:
     return out.drop_duplicates(subset=["erm_key"], keep="first")[["erm", "erm_key", "program"]]
 
 
-def derive_budget_program_from_contractors(details: pd.Series, contractors: pd.DataFrame) -> pd.Series:
+def derive_budget_program_from_contractors(text_values: pd.Series, contractors: pd.DataFrame) -> pd.Series:
     if contractors.empty:
-        return pd.Series(["other"] * len(details), index=details.index)
+        return pd.Series(["other"] * len(text_values), index=text_values.index)
     pairs = [(row["erm_key"], row["program"]) for _, row in contractors.iterrows()]
 
     def match_one(text: str) -> str:
@@ -91,7 +93,7 @@ def derive_budget_program_from_contractors(details: pd.Series, contractors: pd.D
                 return program
         return "other"
 
-    return details.astype(str).map(match_one)
+    return text_values.astype(str).map(match_one)
 
 
 def derive_program(df: pd.DataFrame, lookup: pd.DataFrame) -> pd.Series:
@@ -152,8 +154,9 @@ def map_budget(df: pd.DataFrame, fy: str, account_lookup: pd.DataFrame, contract
     acct_code = normalize_account_code(pick(long, ["account", "account_code"], ""))
     account_name = acct_code.map(dict(zip(account_lookup["account_code"], account_lookup["account_name"]))) if not account_lookup.empty else pd.Series([""] * len(long), index=long.index)
     prod_code_raw, prod_name = split_code_name(pick(long, ["product"], ""))
+    supplier_text = pick(long, ["supplier_name", "supplier"], "")
     details = pick(long, ["details"], "")
-    contractor_program = derive_budget_program_from_contractors(details, contractor_lookup)
+    contractor_program = derive_budget_program_from_contractors(supplier_text, contractor_lookup)
     dict_program = derive_budget_program(details)
     scenario_raw = pick(long, ["scenario_budget_year", "scenario"], f"Budget {fy}")
     budget_year = scenario_raw.astype(str).str.extract(r'(\d{4})')[0].fillna(fy)
@@ -161,7 +164,7 @@ def map_budget(df: pd.DataFrame, fy: str, account_lookup: pd.DataFrame, contract
         "cost_center_code": pick(long, ["cost_center_code"], ""), "cost_center_name": pick(long, ["cost_center_name"], ""),
         "group_cost_nature": pick(long, ["group_cost_nature", "group_cost_center"], ""), "cost_nature": pick(long, ["cost_nature"], ""),
         "account_code": acct_code.fillna(""), "account_name": account_name.fillna(""),
-        "currency": pick(long, ["currency"], ""), "supplier_name": pick(long, ["supplier_name", "supplier"], ""),
+        "currency": pick(long, ["currency"], ""), "supplier_name": supplier_text,
         "cpx_opx": pick(long, ["cpx_opx_capex_opex", "cpx_opx"], ""), "details": details,
         "bubble": pick(long, ["bubble"], ""), "portfolio": pick(long, ["portfolio"], ""),
         "product_code": pick(long, ["product_code"], prod_code_raw.fillna("")), "product_name": prod_name.fillna(""),
