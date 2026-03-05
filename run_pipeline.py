@@ -28,7 +28,7 @@ def append_run_report(project_root: Path, run_row: dict) -> None:
         "discovered",
         "selected_fy",
         "new_bronze",
-        "silver_latest_path",
+        "silver_history_path",
         "gold_fact_path",
         "gold_serving_path",
     ]
@@ -74,7 +74,7 @@ def main() -> None:
             "discovered": summary["discovered"],
             "selected_fy": summary["selected_fy"],
             "new_bronze": summary["new_bronze"],
-            "silver_latest_path": silver_paths.get("latest", ""),
+            "silver_history_path": silver_paths.get("history", ""),
             "gold_fact_path": gold_paths.get("fact", ""),
             "gold_serving_path": serving_path,
         },

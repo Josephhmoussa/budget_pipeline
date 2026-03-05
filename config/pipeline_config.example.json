@@ -6,6 +6,7 @@
     "gold": "data/gold"
   },
   "reference_files": {
-    "project_codes_lookup": "/absolute/path/to/ATIL Project Codes.xls"
+    "project_codes_lookup": "/absolute/path/to/ATIL Project Codes.xlsx",
+    "contractor_codes_lookup": "/absolute/path/to/ATIL_Contractor_Codes.xlsx"
   }
 }
