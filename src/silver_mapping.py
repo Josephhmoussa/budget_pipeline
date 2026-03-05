@@ -7,7 +7,7 @@ from .budget_program_mapping import derive_budget_program
 TARGET_COLS = [
     "cost_center_code", "cost_center_name", "group_cost_nature", "cost_nature", "account_code", "account_name",
     "currency", "supplier_name", "cpx_opx", "details", "bubble", "portfolio", "product_code", "product_name",
-    "date", "amount", "scenario", "program",
+    "date", "amount", "scenario", "program", "actuals_project_code", "is_actuals_project_code_missing",
 ]
 MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]; MONTH_NUM = {m: f"{i:02d}" for i, m in enumerate(MONTHS, start=1)}
 
@@ -128,6 +128,8 @@ def actuals_date(df: pd.DataFrame, fy: str) -> pd.Series:
 def map_actuals(df: pd.DataFrame, fy: str, lookup: pd.DataFrame) -> pd.DataFrame:
     acct_code, acct_name = split_code_name(pick(df, ["account"], ""))
     acct_code = normalize_account_code(acct_code)
+    actuals_project_code = normalize_project_code(pick(df, ["project", "project_code"], ""))
+    project_missing = actuals_project_code.eq("").astype(int)
     _, cc_name = split_code_name(pick(df, ["cost_center_name"], ""))
     prod_code, prod_name = split_code_name(pick(df, ["business_unit_final"], ""))
     cpx = pick(df, ["cpx_opx_n_or_y", "cpx_opx"], "").astype(str).str.strip().str.lower().map({"y": "Capex", "n": "Opex", "capex": "Capex", "opex": "Opex"}).fillna("")
@@ -140,6 +142,7 @@ def map_actuals(df: pd.DataFrame, fy: str, lookup: pd.DataFrame) -> pd.DataFrame
         "bubble": pick(df, ["bubble"], ""), "portfolio": pick(df, ["portfolio"], ""),
         "product_code": prod_code.fillna(""), "product_name": prod_name.fillna(""),
         "date": actuals_date(df, fy), "amount": pick(df, ["amount"], 0), "scenario": "ACTUALS", "program": derive_program(df, lookup),
+        "actuals_project_code": actuals_project_code, "is_actuals_project_code_missing": project_missing,
     })
 
 
@@ -164,4 +167,5 @@ def map_budget(df: pd.DataFrame, fy: str, account_lookup: pd.DataFrame, contract
         "product_code": pick(long, ["product_code"], prod_code_raw.fillna("")), "product_name": prod_name.fillna(""),
         "date": pd.to_datetime(budget_year + "-" + long["month_name"].map(MONTH_NUM).fillna("01") + "-01", errors="coerce"),
         "amount": long["amount"], "scenario": "BUDGET", "program": contractor_program.where(contractor_program != "other", dict_program),
+        "actuals_project_code": "", "is_actuals_project_code_missing": 0,
     })

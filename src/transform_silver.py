@@ -91,7 +91,7 @@ def build_silver(bronze_root: str | Path, silver_root: str | Path, fy: str, prog
     history = pd.concat(frames, ignore_index=True)
     history["amount"] = pd.to_numeric(history["amount"], errors="coerce").fillna(0.0)
     history["date"] = pd.to_datetime(history["date"], errors="coerce")
-    keys = ["cost_center_code", "cost_center_name", "group_cost_nature", "cost_nature", "account_code", "account_name", "currency", "supplier_name", "cpx_opx", "details", "bubble", "portfolio", "product_code", "product_name", "date", "scenario", "program"]
+    keys = ["cost_center_code", "cost_center_name", "group_cost_nature", "cost_nature", "account_code", "account_name", "currency", "supplier_name", "cpx_opx", "details", "bubble", "portfolio", "product_code", "product_name", "date", "scenario", "program", "actuals_project_code"]
     latest = history.sort_values("snapshot_key").drop_duplicates(subset=keys, keep="last")
     history = history[TARGET_COLS]
     latest = latest[TARGET_COLS]
